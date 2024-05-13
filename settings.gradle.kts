@@ -19,6 +19,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "FastRtspLive"
+rootProject.name = "CameraX-H264"
 include(":app")
 include(":camera_record")
