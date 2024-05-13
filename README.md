@@ -5,7 +5,7 @@
 This is a component designed to convert YUV420_888 format image data output from CameraX to H264 encoding. With this component, you can easily encode the raw image data from CameraX into H264 format for storage, transmission, or streaming purposes.
 
 ```kotlin
-        val fragment =
+val fragment =
     supportFragmentManager.findFragmentById(R.id.fragment) as CameraXPreviewFragment
 
 fragment.setOutputBufferCallback { bytes ->
@@ -16,5 +16,4 @@ fragment.setOutputBufferCallback { bytes ->
 }
 ```
 
-
-
+IDE: Android Studio Koala | 2023.3.2 Canary 2
