@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.androidLibrary)
     alias(libs.plugins.jetbrainsKotlinAndroid)
+    id("maven-publish") // 引入 maven 插件
 }
 
 android {
@@ -76,3 +77,20 @@ dependencies {
     implementation(libs.permissionx)
 
 }
+
+
+publishing { // 发布配置
+    publications { // 发布的内容
+        register<MavenPublication>("release") { // 注册一个名字为 release 的发布内容
+            groupId = "com.github.PanPersonalProject"
+            artifactId = "camera_record"
+            version = "1.0.0-SNAPSHOT"
+
+            afterEvaluate { // 在所有的配置都完成之后执行
+                // 从当前 module 的 release 包中发布
+                from(components["release"])
+            }
+        }
+    }
+}
+
