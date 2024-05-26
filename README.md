@@ -18,6 +18,7 @@ fragment.setOutputBufferCallback { bytes ->
 
 
 **将摄像头预览图像进行转换并显示的逻辑：**
+
 1. **将 YUV_420_888 转换为 NV21：**
 
 
@@ -27,6 +28,7 @@ val nv21 = YuvUtil.YUV_420_888toNV21(imageProxy.image)
 
 
 此行将图像数据从 `YUV_420_888` 格式转换为 `NV21` 格式。`NV21` 是摄像头预览和视频编码常用的格式。
+
 2. **旋转 NV21 图像：**
 
 
@@ -40,6 +42,7 @@ val rotateNV21Right90 =
 
 
 此代码检查镜头朝向（前置或后置），并将 `NV21` 图像旋转 270 度（如果是前置摄像头）或 90 度（如果是后置摄像头）。这可确保图像在屏幕上正确显示。
+
 3. **将 NV21 转换为 NV12：**
 
 
@@ -50,6 +53,7 @@ YuvUtil.NV21ToNV12(rotateNV21Right90, nv12, imageProxy.width, imageProxy.height)
 
 
 此代码将旋转后的 `NV21` 图像转换为 `NV12` 格式。`NV12` 是MeidaCodec需要的格式。
+
 4. **从 NV12 图像创建位图：**
 
 
@@ -64,6 +68,7 @@ val bitmap = BitmapUtils.getBitmap(
 
 
 此行从 `NV12` 图像数据创建一个 `Bitmap` 对象。`rotationDegrees` 参数指定要应用于位图的旋转角度。
+
 5. **在 ImageView 上显示位图：**
 
 
