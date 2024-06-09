@@ -81,7 +81,7 @@ dependencies {
 
 publishing { // 发布配置
     publications { // 发布的内容
-        register<MavenPublication>("release") { // 注册一个名字为 release 的发布内容
+        register<MavenPublication>("camera_record") { // 注册一个名字为 camera_record 的发布内容
             groupId = "com.github.PanPersonalProject"
             artifactId = "camera_record"
             version = "1.0.0-SNAPSHOT"
@@ -92,5 +92,21 @@ publishing { // 发布配置
             }
         }
     }
+
+    val isLocal = true // 是否是本地发布
+    repositories {
+        if (isLocal) {
+            maven {
+                //本地路径camera_record/build/repos
+                val releasesRepoUrl = layout.buildDirectory.dir("repos/releases")
+                val snapshotsRepoUrl = layout.buildDirectory.dir("repos/snapshots")
+                url = uri(if (project.hasProperty("release")) releasesRepoUrl else snapshotsRepoUrl)
+
+                //publishToMavenLocal 默认地址： // <home directory of the current user>/.m2/repository
+            }
+        }
+
+    }
+
 }
 
