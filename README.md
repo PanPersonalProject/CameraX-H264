@@ -82,4 +82,14 @@ activity?.runOnUiThread {
 此代码在 UI 线程中使用创建的位图更新 `ImageView`。
 
 
+
+**引用:**
+
+```java
+dependencies {
+    implementation 'com.github.PanPersonalProject:CameraX-H264:1.0.0'
+}
+```
+
+
 **IDE**: Android Studio Koala Feature Drop | 2024.1.2 Canary 3
