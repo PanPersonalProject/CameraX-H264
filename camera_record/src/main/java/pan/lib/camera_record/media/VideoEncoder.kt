@@ -17,7 +17,7 @@ import java.nio.ByteBuffer
  * @author pan qi
  * @since 2024/2/3
  */
-class Encoder(private val outputBufferCallback: (ByteBuffer) -> Unit) {
+class VideoEncoder(private val outputBufferCallback: (ByteBuffer) -> Unit) {
     private var isStarted = false  // 用于标记编码器是否已经启动
 
 

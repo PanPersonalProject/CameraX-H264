@@ -23,7 +23,7 @@ class MainActivity : AppCompatActivity() {
 
         fragment.setOutputBufferCallback { bytes ->
             // here process video frame buffer
-            Log.e("TAG", bytes.joinToString ())
+//            Log.e("TAG", bytes.joinToString ())
 //            FileUtil.writeBytesToFile(this, bytes, "test.h264")
 
         }

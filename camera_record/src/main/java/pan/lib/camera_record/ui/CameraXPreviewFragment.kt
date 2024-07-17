@@ -1,6 +1,7 @@
 package pan.lib.camera_record.ui
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.os.Bundle
 import android.util.Size
 import android.view.LayoutInflater
@@ -21,10 +22,10 @@ import androidx.lifecycle.LifecycleOwner
 import com.google.common.util.concurrent.ListenableFuture
 import com.permissionx.guolindev.PermissionX
 import pan.lib.camera_record.databinding.FragmentCameraPreviewBinding
+import pan.lib.camera_record.media.AudioRecorder
 import pan.lib.camera_record.media.BitmapUtils
-import pan.lib.camera_record.media.Encoder
+import pan.lib.camera_record.media.VideoEncoder
 import pan.lib.camera_record.media.YuvUtil
-import pan.lib.camera_record.test.FileUtil
 import pan.lib.camera_record.test.VideoFileWriter
 import java.nio.ByteBuffer
 import java.util.concurrent.Executors
@@ -44,7 +45,8 @@ class CameraXPreviewFragment : Fragment() {
     private var outputBytesCallback: ((ByteArray) -> Unit)? = null
 
     private var isEncoderInitialized = false
-    private val encoder = Encoder { byteBuffer ->
+    private val audioRecorder by lazy { AudioRecorder() }
+    private val videoEncoder = VideoEncoder { byteBuffer ->
         val data: ByteArray
         if (byteBuffer.hasArray()) {
             data = byteBuffer.array()
@@ -71,14 +73,14 @@ class CameraXPreviewFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        requestCamera()
+        requestPermission()
         videoFileWriter = VideoFileWriter(requireContext().contentResolver)
         binding.cameraSwitchButton.setOnClickListener {
             switchCamera()
         }
 
         binding.stopButton.setOnClickListener {
-            encoder.stop()
+            videoEncoder.stop()
             binding.stopButton.postDelayed({
                 videoFileWriter.closeOutputStream()
 
@@ -86,19 +88,30 @@ class CameraXPreviewFragment : Fragment() {
         }
     }
 
-    private fun requestCamera() {
+    private fun requestPermission() {
         PermissionX.init(this)
-            .permissions(Manifest.permission.CAMERA)
-            .request { allGranted, _, _ ->
+            .permissions(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
+            .request { allGranted, _, deniedList ->
                 if (allGranted) {
                     binding.root.post {
                         startCameraPreview()
+                        startRecording()
                     }
                 } else {
-                    Toast.makeText(context, "camera权限被拒", Toast.LENGTH_SHORT).show()
+                    // 将被拒绝的权限转换为字符串列表
+                    val deniedPermissions = deniedList.joinToString("\n") { it.toString() }
+                    Toast.makeText(context, "以下权限被拒绝: $deniedPermissions", Toast.LENGTH_LONG)
+                        .show()
                 }
             }
     }
+
+    // 开始录音
+    @SuppressLint("MissingPermission")
+    private fun startRecording() {
+        audioRecorder.startRecording(requireContext())
+    }
+
 
     private fun switchCamera() {
         lensFacing = if (CameraSelector.LENS_FACING_FRONT == lensFacing) {
@@ -117,7 +130,7 @@ class CameraXPreviewFragment : Fragment() {
             .requireLensFacing(lensFacing)
             .build()
 
-        preview.setSurfaceProvider(binding.prewview.getSurfaceProvider())
+        preview.surfaceProvider = binding.prewview.getSurfaceProvider()
 
         cameraProvider.unbindAll()
         cameraProvider.bindToLifecycle(
@@ -149,8 +162,8 @@ class CameraXPreviewFragment : Fragment() {
         // 创建一个新的线程执行器，并设置为图像分析器的执行器。当有新的图像可用时，分析器的代码将在这个新的线程上执行。
         imageAnalysis.setAnalyzer(Executors.newSingleThreadExecutor()) { imageProxy ->
             if (!isEncoderInitialized) {
-                encoder.init(requireContext(), imageProxy.height, imageProxy.width)
-                encoder.start()
+                videoEncoder.init(requireContext(), imageProxy.height, imageProxy.width)
+                videoEncoder.start()
                 isEncoderInitialized = true
             }
             val nv21 = YuvUtil.YUV_420_888toNV21(imageProxy.image)
@@ -179,7 +192,7 @@ class CameraXPreviewFragment : Fragment() {
                 binding.myImageView.setImageBitmap(bitmap)
             }
 
-            encoder.encode(nv12)
+            videoEncoder.encode(nv12)
 
             imageProxy.close()
         }
@@ -194,7 +207,8 @@ class CameraXPreviewFragment : Fragment() {
 
 
     override fun onDestroyView() {
-        encoder.stop()
+        videoEncoder.stop()
+        audioRecorder.stopRecording()
         super.onDestroyView()
         _binding = null
     }

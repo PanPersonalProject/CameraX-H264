@@ -10,7 +10,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.permissionx.guolindev.PermissionX
 import pan.lib.camera_record.databinding.ActivityCameraBinding
-import pan.lib.camera_record.media.Encoder
+import pan.lib.camera_record.media.VideoEncoder
 import pan.lib.camera_record.media.YuvUtil
 import pan.lib.camera_record.test.FileUtil.writeBytesToFile
 import java.nio.ByteBuffer
@@ -20,7 +20,7 @@ class CameraPreviewActivity : AppCompatActivity(), PreviewCallback {
     private var camera: Camera? = null
     private var width: Int = 1080
     private var height: Int = 720
-    private var avcCodec: Encoder? = null
+    private var avcCodec: VideoEncoder? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -87,7 +87,7 @@ class CameraPreviewActivity : AppCompatActivity(), PreviewCallback {
             setPreviewDisplay(binding.surfaceview.holder)
             startPreview()
         }
-        avcCodec = Encoder { byteBuffer: ByteBuffer ->
+        avcCodec = VideoEncoder { byteBuffer: ByteBuffer ->
             val data = ByteArray(byteBuffer.remaining()).also { byteBuffer.get(it) }
             writeBytesToFile(this@CameraPreviewActivity, data, "test.h264")
         }
