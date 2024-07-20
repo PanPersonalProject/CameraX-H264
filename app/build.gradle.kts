@@ -64,7 +64,6 @@ dependencies {
     implementation(libs.material)
     implementation(libs.androidx.constraintlayout)
 
-    implementation(libs.permissionx)
 //    implementation(libs.cameraRecord)
 
     implementation(project(":camera_record"))

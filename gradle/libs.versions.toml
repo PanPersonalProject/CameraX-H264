@@ -7,7 +7,6 @@ coreKtx = "1.13.1"
 appcompat = "1.7.0"
 material = "1.12.0"
 constraintlayout = "2.1.4"
-permissionx = "1.7.1"
 minSdk = "29"
 cameraRecord="1.0.0"
 [libraries]
@@ -21,7 +20,6 @@ androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = 
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
-permissionx = { module = "com.guolindev.permissionx:permissionx", version.ref = "permissionx" }
 cameraRecord = { module = "com.github.PanPersonalProject:CameraX-H264", version.ref = "cameraRecord" }
 
 [plugins]

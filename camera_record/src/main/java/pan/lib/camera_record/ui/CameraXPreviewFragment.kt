@@ -2,13 +2,15 @@ package pan.lib.camera_record.ui
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Size
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.OptIn
+import androidx.appcompat.app.AlertDialog
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
@@ -20,7 +22,6 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.LifecycleOwner
 import com.google.common.util.concurrent.ListenableFuture
-import com.permissionx.guolindev.PermissionX
 import pan.lib.camera_record.databinding.FragmentCameraPreviewBinding
 import pan.lib.camera_record.media.AudioRecorder
 import pan.lib.camera_record.media.BitmapUtils
@@ -45,7 +46,7 @@ class CameraXPreviewFragment : Fragment() {
     private var outputBytesCallback: ((ByteArray) -> Unit)? = null
 
     private var isEncoderInitialized = false
-    private val audioRecorder by lazy { AudioRecorder() }
+    private val audioRecorder: AudioRecorder by lazy { AudioRecorder() }
     private val videoEncoder = VideoEncoder { byteBuffer ->
         val data: ByteArray
         if (byteBuffer.hasArray()) {
@@ -88,22 +89,46 @@ class CameraXPreviewFragment : Fragment() {
         }
     }
 
-    private fun requestPermission() {
-        PermissionX.init(this)
-            .permissions(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
-            .request { allGranted, _, deniedList ->
-                if (allGranted) {
-                    binding.root.post {
-                        startCameraPreview()
-                        startRecording()
-                    }
-                } else {
-                    // 将被拒绝的权限转换为字符串列表
-                    val deniedPermissions = deniedList.joinToString("\n") { it.toString() }
-                    Toast.makeText(context, "以下权限被拒绝: $deniedPermissions", Toast.LENGTH_LONG)
-                        .show()
+    private val requestPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+            val allGranted = permissions.all { it.value }
+            if (allGranted) {
+                binding.root.post {
+                    startCameraPreview()
+                    startRecording()
                 }
+            } else {
+                val deniedPermissions = permissions.filter { !it.value }.keys.joinToString("\n")
+                AlertDialog.Builder(requireContext())
+                    .setTitle("以下权限被拒绝")
+                    .setMessage(deniedPermissions)
+                    .setPositiveButton("确定", null)
+                    .show()
             }
+        }
+
+    private fun requestPermission() {
+        if (ContextCompat.checkSelfPermission(
+                requireContext(),
+                Manifest.permission.CAMERA
+            ) != PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(
+                requireContext(),
+                Manifest.permission.RECORD_AUDIO
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.CAMERA,
+                    Manifest.permission.RECORD_AUDIO
+                )
+            )
+        } else {
+            binding.root.post {
+                startCameraPreview()
+                startRecording()
+            }
+        }
     }
 
     // 开始录音
