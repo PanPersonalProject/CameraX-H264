@@ -1,6 +1,5 @@
 package pan.lib.camera_record.media
 
-
 import android.content.Context
 import android.media.MediaCodec
 import android.media.MediaCodecInfo
@@ -11,6 +10,8 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.nio.ByteBuffer
+import java.util.Queue
+import java.util.concurrent.ConcurrentLinkedDeque
 
 /**
  * 这个类的主要功能是将输入的YUV数据编码为H.264数据。
@@ -32,6 +33,11 @@ class VideoEncoder(private val outputBufferCallback: (ByteBuffer) -> Unit) {
     private var context: Context? = null
     private var width = 0
     private var height = 0
+
+    private var sps: ByteArray? = null
+    private var pps: ByteArray? = null
+
+    private val mIndexQueue: Queue<Int> = ConcurrentLinkedDeque()
 
     // 初始化方法，用于创建和配置MediaCodec
     fun init(context: Context, width: Int, height: Int) {
@@ -55,8 +61,49 @@ class VideoEncoder(private val outputBufferCallback: (ByteBuffer) -> Unit) {
 
         // 配置MediaCodec，将MediaFormat传入
         codec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
-    }
 
+        codec.setCallback(object : MediaCodec.Callback() {
+            override fun onInputBufferAvailable(codec: MediaCodec, index: Int) {
+                mIndexQueue.add(index)
+            }
+
+            override fun onOutputBufferAvailable(
+                codec: MediaCodec,
+                index: Int,
+                info: MediaCodec.BufferInfo
+            ) {
+                val outputBuffer = codec.getOutputBuffer(index)
+                if (outputBuffer != null) {
+                    if (info.flags and MediaCodec.BUFFER_FLAG_KEY_FRAME != 0) {
+                        // Insert SPS and PPS before each I-frame
+                        sps?.let { spsData ->
+                            pps?.let { ppsData ->
+                                val combinedBuffer =
+                                    ByteBuffer.allocate(spsData.size + ppsData.size + outputBuffer.remaining())
+                                combinedBuffer.put(spsData)
+                                combinedBuffer.put(ppsData)
+                                combinedBuffer.put(outputBuffer)
+                                combinedBuffer.flip()
+                                outputBufferCallback(combinedBuffer)
+                            }
+                        }
+                    } else {
+                        outputBufferCallback(outputBuffer)
+                    }
+                    codec.releaseOutputBuffer(index, false)
+                }
+            }
+
+            override fun onError(codec: MediaCodec, e: MediaCodec.CodecException) {
+                Log.e("Encoder", "onError: ${e.message}")
+            }
+
+            override fun onOutputFormatChanged(codec: MediaCodec, format: MediaFormat) {
+                sps = format.getByteBuffer("csd-0")?.toByteArray()
+                pps = format.getByteBuffer("csd-1")?.toByteArray()
+            }
+        })
+    }
 
     // 开始编码
     fun start() {
@@ -65,56 +112,15 @@ class VideoEncoder(private val outputBufferCallback: (ByteBuffer) -> Unit) {
     }
 
     /**
-    作用：将输入的ByteBuffer编码为输出的ByteBuffer
-    在编程中，缓冲区通常是一块预留的内存，用于临时存储数，以便在数据发送和接收之间提供一种缓冲机制。在这个Encoder类中，输入缓冲区和输出缓冲区是MediaCodec用于处理编码操作的关键部分。
-    输入缓冲区：这是原始数据（在这个例子中是YUV格式的视频数据）被放入的地方。当你调用codec.getInputBuffer(inputBufferIndex)，你会得到一个可以写入原始数据的ByteBuffer。然后，你可以使用put方法将原始数据放入这个缓冲区。
-    输出缓冲区：这是编码后的数据（在这个例子中是H.264格式的视频数据）被放入的地方。当你调用codec.getOutputBuffer(outputBufferIndex)，你会得到一个包含编码后数据的ByteBuffer。然后，你可以使用get方法将编码后的数据从这个缓冲区中取出。
-    这种使用缓冲区的方式可以有效地处理数据，因为它允许数据在被处理的同时进行读写操作，从而提高了数据处理的效率。
+    作用：将输入的yuv数据编码为h264
      */
     fun encode(yuvBytes: ByteArray) {
-        if (!isStarted) {
-            return
-        }
-        // 获取一个输入缓冲区的索引，如果没有可用的缓冲区，这个方法将返回一个负数
-        val inputBufferIndex = codec.dequeueInputBuffer(-1)
-        if (inputBufferIndex < 0) {
-            return
-        }
-        // 获取指定索引的输入缓冲区
-        val inputBuffer = codec.getInputBuffer(inputBufferIndex)
-        if (inputBuffer == null) {
-            Log.e("Encoder", "getInputBuffer failed")
-            return
-        }
-        // 将输入数据（即原始的YUV数据）放入输入缓冲区
-        inputBuffer.clear()
-        inputBuffer.put(yuvBytes)
-//        Log.w("Encoder", "input remaining: ${yuvBytes.size}")
-
-        // 将填充了数据的输入缓冲区返回给编码器，编码器将在后台对这些数据进行编码
-        codec.queueInputBuffer(inputBufferIndex, 0, yuvBytes.size, System.nanoTime(), 0)
-
-        // 创建一个BufferInfo对象，用于接收输出缓冲区的元数据
-        val bufferInfo = MediaCodec.BufferInfo()
-        // 获取一个包含编码后数据的输出缓冲区的索引
-        var outputBufferIndex = codec.dequeueOutputBuffer(bufferInfo, 12000)
-//        Log.w("Encoder", "outputBufferIndex: $outputBufferIndex")
-        while (outputBufferIndex >= 0) {
-            // 获取指定索引的输出缓冲区，这个缓冲区包含了编码后的数据
-            val outputBuffer = codec.getOutputBuffer(outputBufferIndex)
-            if (outputBuffer == null) {
-                Log.e("Encoder", "getOutputBuffer failed")
-                return
-            }
-            // 将编码后的数据复制到output缓冲区
-            outputBufferCallback(outputBuffer)
-            // 将已经读取了数据的输出缓冲区返回给编码器
-            codec.releaseOutputBuffer(outputBufferIndex, false)
-            outputBufferIndex = codec.dequeueOutputBuffer(bufferInfo, 12000)
-
-        }
-
-
+        if (!isStarted) return
+        val index = mIndexQueue.poll() ?: return
+        val inputBuffer: ByteBuffer? = codec.getInputBuffer(index)
+        inputBuffer?.clear()
+        inputBuffer?.put(yuvBytes)
+        codec.queueInputBuffer(index, 0, yuvBytes.size, System.nanoTime(), 0)
     }
 
 
@@ -130,4 +136,9 @@ class VideoEncoder(private val outputBufferCallback: (ByteBuffer) -> Unit) {
         }
     }
 
+    private fun ByteBuffer.toByteArray(): ByteArray {
+        val bytes = ByteArray(remaining())
+        get(bytes)
+        return bytes
+    }
 }
