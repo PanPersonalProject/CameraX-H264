@@ -16,14 +16,12 @@ class AudioRecorder {
     private val sampleRate = 44100 // 采样频率为 44100 Hz
     private val channelInMono = AudioFormat.CHANNEL_IN_MONO // 单声道
     private val encodingPcm16Bit = AudioFormat.ENCODING_PCM_16BIT // 量化精度为 16 位
-    private var minBufferSize: Int = 0 // 音频缓冲区大小
     private val recordStarted = AtomicBoolean(false) // 是否开始录音
+    private var minBufferSize: Int =
+        AudioRecord.getMinBufferSize(sampleRate, channelInMono, encodingPcm16Bit) // 音频最小缓冲区大小
 
-    private val audioRecord by lazy {
-        minBufferSize =
-            AudioRecord.getMinBufferSize(sampleRate, channelInMono, encodingPcm16Bit)// 获取最小缓冲区大小
+    private val audioRecord =
         AudioRecord(source, sampleRate, channelInMono, encodingPcm16Bit, minBufferSize)
-    }
 
     private val scope = CoroutineScope(Dispatchers.IO)
     private val aacEncoder = AacEncoder(sampleRate, 1, 128000) // 比特率为 128 kbps
