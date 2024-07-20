@@ -9,9 +9,7 @@
         tools:ignore="ScopedStorage" />
 
     <application>
-        <activity
-            android:name=".ui.CameraPreviewActivity"
-            android:exported="false" />
+
     </application>
 
 </manifest>
