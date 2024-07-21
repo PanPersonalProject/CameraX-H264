@@ -2,11 +2,13 @@ package pan.lib.camera_record.media
 
 import android.content.Context
 import android.media.MediaCodec
+import android.media.MediaFormat
 import android.util.Log
 import androidx.camera.core.ImageProxy
 import androidx.camera.view.PreviewView
 import androidx.lifecycle.LifecycleOwner
 import pan.lib.camera_record.file.FileUtil
+import pan.lib.camera_record.media.audio.AacInterface
 import pan.lib.camera_record.media.audio.AudioRecorder
 import pan.lib.camera_record.media.video.CameraPreviewInterface
 import pan.lib.camera_record.media.video.CameraRecorder
@@ -27,7 +29,6 @@ open class StreamManager(
     private val previewView: PreviewView,
     private val onNv21FrameCallback: (nv21: ByteArray, imageProxy: ImageProxy) -> Unit
 ) {
-    private val audioRecorder: AudioRecorder by lazy { AudioRecorder(context) }
     private val cameraRecorder: CameraRecorder by lazy {
         val needSaveH264ToLocal = false // 是否保存到本地
 
@@ -62,29 +63,35 @@ open class StreamManager(
                     }
                 }
 
-                /**
-                 * 打印ByteBuffer内容的辅助函数
-                 */
-                fun logByteBufferContent(tag: String, name: String, byteBuffer: ByteBuffer?) {
-                    if (byteBuffer == null) {
-                        Log.d(tag, "$name is null")
-                        return
-                    }
 
-                    val byteData = ByteArray(byteBuffer.remaining())
-                    byteBuffer.rewind() // 确保从头开始读取
-                    byteBuffer.get(byteData)
-
-                    val hexString = byteData.joinToString(separator = " ") { "%02X".format(it) }
-                    Log.d(tag, "$name: $hexString")
-                }
             }
         )
     }
 
-    init {
-        audioRecorder.needSaveAacToLocal = false // 默认不保存 aac 到本地
+    private val audioRecorder: AudioRecorder by lazy {
+        AudioRecorder(object : AacInterface {
+            var needSaveAacToLocal = false // 是否保存aac到本地
+
+            override fun getAacData(aacBuffer: ByteBuffer, info: MediaCodec.BufferInfo) {
+                val data: ByteArray
+                if (aacBuffer.hasArray()) {
+                    data = aacBuffer.array()
+                } else {
+                    data = ByteArray(aacBuffer.remaining())
+                    aacBuffer.get(data)
+                }
+
+                if (needSaveAacToLocal) {
+                    FileUtil.writeBytesToFile(context, data, "test.aac")
+                }
+            }
+
+            override fun onAudioFormat(mediaFormat: MediaFormat) {
+                Log.d("StreamManager", "onAudioFormat: $mediaFormat")
+            }
+        })
     }
+
 
     /**
      * 启动摄像头和音频录制。
@@ -107,5 +114,22 @@ open class StreamManager(
      */
     fun switchCamera() {
         cameraRecorder.switchCamera()
+    }
+
+    /**
+     * 打印ByteBuffer内容的辅助函数
+     */
+    fun logByteBufferContent(tag: String, name: String, byteBuffer: ByteBuffer?) {
+        if (byteBuffer == null) {
+            Log.d(tag, "$name is null")
+            return
+        }
+
+        val byteData = ByteArray(byteBuffer.remaining())
+        byteBuffer.rewind() // 确保从头开始读取
+        byteBuffer.get(byteData)
+
+        val hexString = byteData.joinToString(separator = " ") { "%02X".format(it) }
+        Log.d(tag, "$name: $hexString")
     }
 }
