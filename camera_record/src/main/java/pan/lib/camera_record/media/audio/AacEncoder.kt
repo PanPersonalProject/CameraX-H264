@@ -9,19 +9,27 @@ import java.util.Queue
 import java.util.concurrent.ConcurrentLinkedDeque
 
 /**
- * 将PCM编码为AAC(带ADTS Header)
  * @author pan
  * @since 2024/7/21
+ * 将PCM编码为AAC(可选带ADTS Header)
+ * 注意:
+ * - 在RTSP流中，AAC数据流通过RTP协议传输，ADTS头部信息不必要。RTP流协议已处理音频数据包的分隔与同步，因此RTSP推流时不需要ADTS头部。
+ * - 在将AAC数据保存到文件时，需要ADTS头部信息，因为ADTS头部为每个AAC帧提供了同步和完整性验证功能，以确保音频数据的正确解码和播放。
  */
 class AacEncoder(
     private val sampleRate: Int,
-    private val channelCount: Int,
-    private val bitRate: Int
+    private val channelCount: Int = 1,
+    private val bitRate: Int = 128000,
+    private val addAdts: Boolean = false // 是否添加 ADTS 头部
 ) {
     private val mediaCodec: MediaCodec by lazy { MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_AAC) }
     private var isStarted = false
     private val mIndexQueue: Queue<Int> = ConcurrentLinkedDeque()
 
+    /**
+     * 初始化编码器
+     * @param onEncoded 回调函数，用于接收aac数据
+     */
     fun initialize(onEncoded: (ByteBuffer) -> Unit) {
         val format =
             MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC, sampleRate, channelCount)
@@ -47,14 +55,22 @@ class AacEncoder(
                     it.position(info.offset)
                     it.limit(info.offset + info.size)
 
-                    // 创建包含 ADTS 头的输出数据数组
-                    val outData = ByteArray(info.size + 7)
-                    // 添加 ADTS 头信息
-                    addAdtsHeader(outData, outData.size)
-                    // 从 ByteBuffer 中读取编码后的 AAC 数据到输出数据数组中
-                    it.get(outData, 7, info.size)
+                    // 创建输出数据数组
+                    val outData = if (addAdts) {
+                        ByteArray(info.size + 7).also { packet ->
+                            // 添加 ADTS 头信息
+                            addAdtsHeader(packet, packet.size)
+                            // 从 ByteBuffer 中读取编码后的 AAC 数据到输出数据数组中
+                            it.get(packet, 7, info.size)
+                        }
+                    } else {
+                        ByteArray(info.size).also { packet ->
+                            // 直接从 ByteBuffer 中读取编码后的 AAC 数据
+                            it.get(packet, 0, info.size)
+                        }
+                    }
 
-                    // 调用回调函数，传递包含 ADTS 头的编码数据
+                    // 回调aac数据
                     onEncoded(ByteBuffer.wrap(outData))
                 }
                 codec.releaseOutputBuffer(index, false)
@@ -65,7 +81,7 @@ class AacEncoder(
             }
 
             override fun onOutputFormatChanged(codec: MediaCodec, format: MediaFormat) {
-                // Handle the format change if needed
+                // 处理格式变化，如果需要的话
             }
         })
 
@@ -73,6 +89,11 @@ class AacEncoder(
         isStarted = true
     }
 
+    /**
+     * 编码PCM数据
+     * @param pcmData PCM数据
+     * @param size PCM数据的大小
+     */
     fun encode(pcmData: ByteArray, size: Int) {
         if (!isStarted) return
         val index = mIndexQueue.poll() ?: return
@@ -82,12 +103,20 @@ class AacEncoder(
         mediaCodec.queueInputBuffer(index, 0, size, System.nanoTime() / 1000, 0)
     }
 
+    /**
+     * 完成编码
+     */
     fun finalizeEncoding() {
         isStarted = false
         mediaCodec.stop()
         mediaCodec.release()
     }
 
+    /**
+     * 添加ADTS头部信息
+     * @param packet 输出数据数组
+     * @param packetLen 包长度
+     */
     private fun addAdtsHeader(packet: ByteArray, packetLen: Int) {
         val profile = 2 // AAC LC (低复杂度)
         val freqIdx = 4 // 44100Hz

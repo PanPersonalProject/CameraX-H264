@@ -25,7 +25,7 @@ class AudioRecorder(private val context: Context) {
         AudioRecord(source, sampleRate, channelInMono, encodingPcm16Bit, minBufferSize)
 
     private val scope = CoroutineScope(Dispatchers.IO)
-    private val aacEncoder = AacEncoder(sampleRate, 1, 128000) // 比特率为 128 kbps
+    private val aacEncoder = AacEncoder(sampleRate, 1, 128000,true) // 比特率为 128 kbps
 
     fun startRecording() {
         if (recordStarted.get()) return // 已经在录音中
