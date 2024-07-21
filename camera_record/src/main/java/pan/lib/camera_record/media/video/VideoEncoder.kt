@@ -1,4 +1,4 @@
-package pan.lib.camera_record.media
+package pan.lib.camera_record.media.video
 
 import android.content.Context
 import android.media.MediaCodec
@@ -18,7 +18,7 @@ import java.util.concurrent.ConcurrentLinkedDeque
  * @author pan qi
  * @since 2024/2/3
  */
-class VideoEncoder(private val outputBufferCallback: (ByteBuffer) -> Unit) {
+class VideoEncoder(private val cameraPreviewInterface: CameraPreviewInterface) {
     private var isStarted = false  // 用于标记编码器是否已经启动
 
 
@@ -34,8 +34,8 @@ class VideoEncoder(private val outputBufferCallback: (ByteBuffer) -> Unit) {
     private var width = 0
     private var height = 0
 
-    private var sps: ByteArray? = null
-    private var pps: ByteArray? = null
+    private var sps: ByteBuffer? = null
+    private var pps: ByteBuffer? = null
 
     private val mIndexQueue: Queue<Int> = ConcurrentLinkedDeque()
 
@@ -79,16 +79,25 @@ class VideoEncoder(private val outputBufferCallback: (ByteBuffer) -> Unit) {
                         sps?.let { spsData ->
                             pps?.let { ppsData ->
                                 val combinedBuffer =
-                                    ByteBuffer.allocate(spsData.size + ppsData.size + outputBuffer.remaining())
+                                    ByteBuffer.allocate(spsData.remaining() + ppsData.remaining() + info.size)
                                 combinedBuffer.put(spsData)
                                 combinedBuffer.put(ppsData)
                                 combinedBuffer.put(outputBuffer)
+
                                 combinedBuffer.flip()
-                                outputBufferCallback(combinedBuffer)
+
+                                val newInfo = MediaCodec.BufferInfo().apply {
+                                    offset = 0
+                                    size = combinedBuffer.remaining()
+                                    presentationTimeUs = info.presentationTimeUs
+                                    flags = info.flags
+                                }
+
+                                cameraPreviewInterface.onVideoBuffer(combinedBuffer, newInfo)
                             }
                         }
                     } else {
-                        outputBufferCallback(outputBuffer)
+                        cameraPreviewInterface.onVideoBuffer(outputBuffer, info)
                     }
                     codec.releaseOutputBuffer(index, false)
                 }
@@ -99,8 +108,9 @@ class VideoEncoder(private val outputBufferCallback: (ByteBuffer) -> Unit) {
             }
 
             override fun onOutputFormatChanged(codec: MediaCodec, format: MediaFormat) {
-                sps = format.getByteBuffer("csd-0")?.toByteArray()
-                pps = format.getByteBuffer("csd-1")?.toByteArray()
+                sps = format.getByteBuffer("csd-0")
+                pps = format.getByteBuffer("csd-1")
+                cameraPreviewInterface.onSpsPpsVps(sps!!, pps, null)
             }
         })
     }

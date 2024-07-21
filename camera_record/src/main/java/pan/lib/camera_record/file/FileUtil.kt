@@ -1,4 +1,4 @@
-package pan.lib.camera_record.test
+package pan.lib.camera_record.file
 
 import android.content.Context
 import java.io.File
@@ -11,7 +11,7 @@ object FileUtil {
         val fos = FileOutputStream(file, true) // true表示使用append模式
 
         fos.write(bytes)
-        fos.flush();
+        fos.flush()
         fos.close()
     }
 }

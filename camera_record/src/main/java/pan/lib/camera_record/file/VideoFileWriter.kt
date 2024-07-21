@@ -1,4 +1,4 @@
-package pan.lib.camera_record.test
+package pan.lib.camera_record.file
 
 import android.content.ContentResolver
 import android.content.ContentValues

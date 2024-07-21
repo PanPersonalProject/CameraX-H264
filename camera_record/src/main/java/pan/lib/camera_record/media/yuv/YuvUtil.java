@@ -1,4 +1,4 @@
-package pan.lib.camera_record.media;
+package pan.lib.camera_record.media.yuv;
 
 import android.media.Image;
 
