@@ -11,10 +11,17 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.camera.core.ImageProxy
+import androidx.camera.view.PreviewView
 import pan.lib.camera_record.databinding.FragmentCameraPreviewBinding
+import pan.lib.camera_record.file.FileUtil
 import pan.lib.camera_record.media.StreamManager
+import pan.lib.camera_record.media.audio.AacInterface
+import pan.lib.camera_record.media.video.CameraPreviewInterface
 import pan.lib.camera_record.media.yuv.BitmapUtils
 import java.nio.ByteBuffer
+import android.media.MediaCodec
+import android.media.MediaFormat
 
 /**
  * @author pan qi
@@ -24,6 +31,7 @@ class CameraXPreviewFragment : Fragment() {
 
     private lateinit var binding: FragmentCameraPreviewBinding
     private lateinit var streamManager: StreamManager
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
@@ -34,8 +42,31 @@ class CameraXPreviewFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        streamManager = StreamManager(
+            requireContext(),
+            viewLifecycleOwner,
+            binding.prewview,
+            cameraPreviewInterface,
+            aacInterface
+        )
+
+        binding.cameraSwitchButton.setOnClickListener {
+            streamManager.switchCamera()
+        }
+
+        binding.stopButton.setOnClickListener {
+            streamManager.stop()
+        }
+
         requestPermissions()
-        streamManager = StreamManager(requireContext(), this, binding.prewview) { nv21, imageProxy ->
+
+    }
+
+    private val cameraPreviewInterface = object : CameraPreviewInterface {
+        val needSaveH264ToLocal = false // 是否保存h264到本地
+        override fun getPreviewView(): PreviewView = binding.prewview
+
+        override fun onNv21Frame(nv21: ByteArray, imageProxy: ImageProxy) {
             val bitmap = BitmapUtils.getBitmap(
                 ByteBuffer.wrap(nv21),
                 imageProxy.width,
@@ -47,12 +78,44 @@ class CameraXPreviewFragment : Fragment() {
             }
         }
 
-        binding.cameraSwitchButton.setOnClickListener {
-            streamManager.switchCamera()
+        override fun onSpsPpsVps(sps: ByteBuffer, pps: ByteBuffer?, vps: ByteBuffer?) {
+            "CameraXPreviewFragment".logByteBufferContent("SPS", sps)
+            "CameraXPreviewFragment".logByteBufferContent("PPS", pps)
+            "CameraXPreviewFragment".logByteBufferContent("VPS", vps)//only for H265
         }
 
-        binding.stopButton.setOnClickListener {
-            streamManager.stop()
+        override fun onVideoBuffer(h264Buffer: ByteBuffer, info: MediaCodec.BufferInfo) {
+            val data: ByteArray
+            if (h264Buffer.hasArray()) {
+                data = h264Buffer.array()
+            } else {
+                data = ByteArray(h264Buffer.remaining())
+                h264Buffer.get(data)
+            }
+            if (needSaveH264ToLocal) {
+                FileUtil.writeBytesToFile(requireContext(), data, "test.h264")
+            }
+        }
+    }
+
+    private val aacInterface = object : AacInterface {
+        val needSaveAacToLocal = false // 是否保存aac到本地
+        override fun getAacData(aacBuffer: ByteBuffer, info: MediaCodec.BufferInfo) {
+            val data: ByteArray
+            if (aacBuffer.hasArray()) {
+                data = aacBuffer.array()
+            } else {
+                data = ByteArray(aacBuffer.remaining())
+                aacBuffer.get(data)
+            }
+
+            if (needSaveAacToLocal) {
+                FileUtil.writeBytesToFile(requireContext(), data, "test.aac")
+            }
+        }
+
+        override fun onAudioFormat(mediaFormat: MediaFormat) {
+            Log.d("CameraXPreviewFragment", "onAudioFormat: $mediaFormat")
         }
     }
 
@@ -90,7 +153,6 @@ class CameraXPreviewFragment : Fragment() {
         }
     }
 
-
     private fun handlePermissionsResult(permissions: Map<String, Boolean>) {
         val allGranted = permissions.all { it.value }
         if (allGranted) {
@@ -103,7 +165,6 @@ class CameraXPreviewFragment : Fragment() {
         }
     }
 
-
     private fun showPermissionDeniedDialog(deniedPermissions: String) {
         AlertDialog.Builder(requireContext())
             .setTitle("以下权限被拒绝")
@@ -115,5 +176,19 @@ class CameraXPreviewFragment : Fragment() {
     override fun onDestroyView() {
         streamManager.stop()
         super.onDestroyView()
+    }
+
+    private fun String.logByteBufferContent(name: String, byteBuffer: ByteBuffer?) {
+        if (byteBuffer == null) {
+            Log.d(this, "$name is null")
+            return
+        }
+
+        val byteData = ByteArray(byteBuffer.remaining())
+        byteBuffer.rewind()
+        byteBuffer.get(byteData)
+
+        val hexString = byteData.joinToString(separator = " ") { "%02X".format(it) }
+        Log.d(this, "$name: $hexString")
     }
 }

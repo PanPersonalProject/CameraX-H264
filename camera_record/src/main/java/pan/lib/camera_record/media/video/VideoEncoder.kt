@@ -146,9 +146,4 @@ class VideoEncoder(private val cameraPreviewInterface: CameraPreviewInterface) {
         }
     }
 
-    private fun ByteBuffer.toByteArray(): ByteArray {
-        val bytes = ByteArray(remaining())
-        get(bytes)
-        return bytes
-    }
 }

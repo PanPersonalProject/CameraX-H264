@@ -13,65 +13,79 @@
 ### 1. 视频和音频采集与编码管理
 
 通过 [StreamManager](camera_record/src/main/java/pan/lib/camera_record/media/StreamManager.kt) 管理视频和音频的采集与编码，里面包含 `CameraRecorder` 和 `AudioRecorder`。 (完整流程请参考 [CameraXPreviewFragment](camera_record/src/main/java/pan/lib/camera_record/ui/CameraXPreviewFragment.kt))
-
-#### 1.1 `CameraRecorder`
+```kotlin
+        streamManager = StreamManager(
+            requireContext(),
+            viewLifecycleOwner,
+            binding.prewview,
+            cameraPreviewInterface,
+            aacInterface
+        )
+```
+#### 1.1 `CameraPreviewInterface` 视频采集
 
 ```kotlin
-CameraRecorder(
-    context.lifecycleOwner,
-    object : CameraPreviewInterface {
 
-        override fun getPreviewView(): PreviewView = previewView
+private val cameraPreviewInterface = object : CameraPreviewInterface {
+    val needSaveH264ToLocal = false // 是否保存h264到本地
+    override fun getPreviewView(): PreviewView = binding.prewview
 
-        override fun onNv21Frame(nv21: ByteArray, imageProxy: ImageProxy) {
-            // NV21 数据回调
-        }
-
-        override fun onSpsPpsVps(sps: ByteBuffer, pps: ByteBuffer?, vps: ByteBuffer?) {
-            // SPS、PPS、VPS 数据回调
-        }
-
-        override fun onVideoBuffer(h264Buffer: ByteBuffer, info: MediaCodec.BufferInfo) {
-            // H264 数据回调
-            val data: ByteArray = if (h264Buffer.hasArray()) {
-                h264Buffer.array()
-            } else {
-                ByteArray(h264Buffer.remaining()).also {
-                    h264Buffer.get(it)
-                }
-            }
-            if (needSaveH264ToLocal) {
-                FileUtil.writeBytesToFile(context, data, "test.h264")
-            }
+    override fun onNv21Frame(nv21: ByteArray, imageProxy: ImageProxy) {
+        val bitmap = BitmapUtils.getBitmap(
+            ByteBuffer.wrap(nv21),
+            imageProxy.width,
+            imageProxy.height,
+            imageProxy.imageInfo.rotationDegrees
+        )
+        binding.myImageView.post {
+            binding.myImageView.setImageBitmap(bitmap)
         }
     }
-)
+
+    override fun onSpsPpsVps(sps: ByteBuffer, pps: ByteBuffer?, vps: ByteBuffer?) {
+        "CameraXPreviewFragment".logByteBufferContent("SPS", sps)
+        "CameraXPreviewFragment".logByteBufferContent("PPS", pps)
+        "CameraXPreviewFragment".logByteBufferContent("VPS", vps)//only for H265
+    }
+
+    override fun onVideoBuffer(h264Buffer: ByteBuffer, info: MediaCodec.BufferInfo) {
+        val data: ByteArray
+        if (h264Buffer.hasArray()) {
+            data = h264Buffer.array()
+        } else {
+            data = ByteArray(h264Buffer.remaining())
+            h264Buffer.get(data)
+        }
+        if (needSaveH264ToLocal) {
+            FileUtil.writeBytesToFile(requireContext(), data, "test.h264")
+        }
+    }
+}
 ```
 
-#### 1.2 `AudioRecorder`
+#### 1.2 `AacInterface` 音频采集
 
 ```kotlin
-AudioRecorder(object : AacInterface {
-    var needSaveAacToLocal = false // 是否保存 AAC 到本地
-
+    private val aacInterface = object : AacInterface {
+    val needSaveAacToLocal = false // 是否保存aac到本地
     override fun getAacData(aacBuffer: ByteBuffer, info: MediaCodec.BufferInfo) {
-        val data: ByteArray = if (aacBuffer.hasArray()) {
-            aacBuffer.array()
+        val data: ByteArray
+        if (aacBuffer.hasArray()) {
+            data = aacBuffer.array()
         } else {
-            ByteArray(aacBuffer.remaining()).also {
-                aacBuffer.get(it)
-            }
+            data = ByteArray(aacBuffer.remaining())
+            aacBuffer.get(data)
         }
 
         if (needSaveAacToLocal) {
-            FileUtil.writeBytesToFile(context, data, "test.aac")
+            FileUtil.writeBytesToFile(requireContext(), data, "test.aac")
         }
     }
 
     override fun onAudioFormat(mediaFormat: MediaFormat) {
-        Log.d("StreamManager", "onAudioFormat: $mediaFormat")
+        Log.d("CameraXPreviewFragment", "onAudioFormat: $mediaFormat")
     }
-})
+}
 ```
 
 ### 2. 将摄像头 YUV 图像进行转换并显示的逻辑
