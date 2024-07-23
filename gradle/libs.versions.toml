@@ -1,5 +1,4 @@
 [versions]
-
 agp = "8.5.1"
 cameraxVersion = "1.4.0-beta02"
 kotlin = "2.0.0"
@@ -21,6 +20,23 @@ androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
 cameraRecord = { module = "com.github.PanPersonalProject:CameraX-H264", version.ref = "cameraRecord" }
+
+[bundles]
+camerax = [
+    "androidx-camera-camera2",
+    "androidx-camera-core",
+    "androidx-camera-extensions",
+    "androidx-camera-video",
+    "androidx-camera-lifecycle",
+    "androidx-camera-view"
+]
+
+essential = [
+    "androidx-core-ktx",
+    "androidx-appcompat",
+    "material",
+    "androidx-constraintlayout"
+]
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
