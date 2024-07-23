@@ -1,4 +1,4 @@
-package pan.lib.camera_record.ui
+package pan.project.camerax_h264
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -13,7 +13,6 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.camera.core.ImageProxy
 import androidx.camera.view.PreviewView
-import pan.lib.camera_record.databinding.FragmentCameraPreviewBinding
 import pan.lib.camera_record.file.FileUtil
 import pan.lib.camera_record.media.StreamManager
 import pan.lib.camera_record.media.audio.AacInterface
@@ -22,6 +21,7 @@ import pan.lib.camera_record.media.yuv.BitmapUtils
 import java.nio.ByteBuffer
 import android.media.MediaCodec
 import android.media.MediaFormat
+import pan.project.camerax_h264.databinding.FragmentCameraPreviewBinding
 
 /**
  * @author pan qi

@@ -11,8 +11,7 @@
 ## 使用示例
 
 ### 1. 视频和音频采集与编码管理
-
-通过 [StreamManager](camera_record/src/main/java/pan/lib/camera_record/media/StreamManager.kt) 管理视频和音频的采集与编码，里面包含 `CameraRecorder` 和 `AudioRecorder`。 (完整流程请参考 [CameraXPreviewFragment](camera_record/src/main/java/pan/lib/camera_record/ui/CameraXPreviewFragment.kt))
+通过 [StreamManager](camera_record/src/main/java/pan/lib/camera_record/media/StreamManager.kt) 管理视频和音频的采集与编码，里面包含 `CameraRecorder` 和 `AudioRecorder`。 (完整流程请参考 [CameraXPreviewFragment](app/src/main/java/pan/project/camerax_h264/CameraXPreviewFragment.kt))
 ```kotlin
         streamManager = StreamManager(
             requireContext(),
