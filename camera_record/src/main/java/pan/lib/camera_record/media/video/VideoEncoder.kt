@@ -98,6 +98,7 @@ class VideoEncoder(private val cameraPreviewInterface: CameraPreviewInterface) {
                         }
                     } else {
                         cameraPreviewInterface.onVideoBuffer(outputBuffer, info)
+//                        Log.d("CameraXPreviewFragment", "onVideoBuffer: ${info.getFormattedPresentationTime()}")
                     }
                     codec.releaseOutputBuffer(index, false)
                 }
@@ -130,7 +131,8 @@ class VideoEncoder(private val cameraPreviewInterface: CameraPreviewInterface) {
         val inputBuffer: ByteBuffer? = codec.getInputBuffer(index)
         inputBuffer?.clear()
         inputBuffer?.put(yuvBytes)
-        codec.queueInputBuffer(index, 0, yuvBytes.size, System.nanoTime(), 0)
+        val presentationTimeUs = System.currentTimeMillis() * 1000L  // 将当前时间转换为微秒
+        codec.queueInputBuffer(index, 0, yuvBytes.size, presentationTimeUs, 0)
     }
 
 

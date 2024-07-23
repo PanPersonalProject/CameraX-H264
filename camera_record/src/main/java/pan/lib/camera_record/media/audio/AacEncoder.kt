@@ -80,6 +80,7 @@ class AacEncoder(
 
                 // 回调aac数据
                 aacInterface.getAacData(accBufferWithADTS, info)
+//                Log.d("CameraXPreviewFragment", "onAudioBuffer: ${info.getFormattedPresentationTime()}")
             }
             codec.releaseOutputBuffer(index, false)
         }
@@ -104,7 +105,8 @@ class AacEncoder(
         val inputBuffer: ByteBuffer? = mediaCodec.getInputBuffer(index)
         inputBuffer?.clear()
         inputBuffer?.put(pcmData, 0, size)
-        mediaCodec.queueInputBuffer(index, 0, size, System.nanoTime() / 1000, 0)
+        val presentationTimeUs = System.currentTimeMillis() * 1000L  // 将当前时间转换为微秒
+        mediaCodec.queueInputBuffer(index, 0, size, presentationTimeUs, 0)
     }
 
     /**
