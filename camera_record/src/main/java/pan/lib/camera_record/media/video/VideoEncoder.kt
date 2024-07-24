@@ -38,6 +38,7 @@ class VideoEncoder(private val cameraPreviewInterface: CameraPreviewInterface) {
     private var pps: ByteBuffer? = null
 
     private val mIndexQueue: Queue<Int> = ConcurrentLinkedDeque()
+    var needInsertSpsPps = false // 是否需要插入SPS和PPS
 
     // 初始化方法，用于创建和配置MediaCodec
     fun init(context: Context, width: Int, height: Int) {
@@ -74,7 +75,7 @@ class VideoEncoder(private val cameraPreviewInterface: CameraPreviewInterface) {
             ) {
                 val outputBuffer = codec.getOutputBuffer(index)
                 if (outputBuffer != null) {
-                    if (info.flags and MediaCodec.BUFFER_FLAG_KEY_FRAME != 0) {
+                    if (needInsertSpsPps && info.flags and MediaCodec.BUFFER_FLAG_KEY_FRAME != 0) {
                         // Insert SPS and PPS before each I-frame
                         sps?.let { spsData ->
                             pps?.let { ppsData ->
@@ -137,15 +138,10 @@ class VideoEncoder(private val cameraPreviewInterface: CameraPreviewInterface) {
 
 
     // 停止编码
-    @OptIn(DelicateCoroutinesApi::class)
     fun stop() {
         isStarted = false
-
-        GlobalScope.launch {
-            delay(1000L)  // 延迟1秒
-            codec.stop()
-            codec.release()
-        }
+        codec.stop()
+        codec.release()
     }
 
 }
