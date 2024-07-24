@@ -133,6 +133,14 @@ val bitmap = BitmapUtils.getBitmap(
 
 该代码在 UI 线程中使用创建的位图更新 `ImageView`。
 
+
+## 引用:
+
+```java
+dependencies {
+    implementation 'com.github.PanPersonalProject:CameraX-H264:1.1.0'
+}
+```
 ## IDE
 
 Android Studio Ladybug | 2024.1.3 Canary 1
