@@ -35,6 +35,7 @@ class VideoEncoder(private val cameraPreviewInterface: CameraPreviewInterface) {
 
     private val mIndexQueue: Queue<Int> = ConcurrentLinkedDeque()
     var needInsertSpsPps = false // 是否需要插入SPS和PPS
+    private var startTime = 0L
 
     // 初始化方法，用于创建和配置MediaCodec
     fun init(context: Context, width: Int, height: Int) {
@@ -115,6 +116,7 @@ class VideoEncoder(private val cameraPreviewInterface: CameraPreviewInterface) {
 
     // 开始编码
     fun start() {
+        startTime = System.currentTimeMillis()
         codec.start()
         isStarted = true
     }
@@ -128,7 +130,7 @@ class VideoEncoder(private val cameraPreviewInterface: CameraPreviewInterface) {
         val inputBuffer: ByteBuffer? = codec.getInputBuffer(index)
         inputBuffer?.clear()
         inputBuffer?.put(yuvBytes)
-        val presentationTimeUs = System.currentTimeMillis() * 1000L  // 将当前时间转换为微秒
+        val presentationTimeUs = (System.currentTimeMillis() - startTime) * 1000L  // 将当前时间转换为微秒
         codec.queueInputBuffer(index, 0, yuvBytes.size, presentationTimeUs, 0)
     }
 
@@ -138,6 +140,7 @@ class VideoEncoder(private val cameraPreviewInterface: CameraPreviewInterface) {
         isStarted = false
         codec.stop()
         codec.release()
+        startTime = 0L
     }
 
 }

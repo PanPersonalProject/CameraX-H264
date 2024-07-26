@@ -26,6 +26,7 @@ class AacEncoder(
     private val mediaCodec: MediaCodec by lazy { MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_AAC) }
     private var isStarted = false
     private val mIndexQueue: Queue<Int> = ConcurrentLinkedDeque()
+    private var startTime = 0L
 
     /**
      * 初始化编码器
@@ -41,6 +42,7 @@ class AacEncoder(
         mediaCodec.setCallback(getMediaCodecCallBack())
         mediaCodec.start()
         isStarted = true
+        startTime = System.currentTimeMillis()
     }
 
     private fun getMediaCodecCallBack() = object : MediaCodec.Callback() {
@@ -105,7 +107,7 @@ class AacEncoder(
         val inputBuffer: ByteBuffer? = mediaCodec.getInputBuffer(index)
         inputBuffer?.clear()
         inputBuffer?.put(pcmData, 0, size)
-        val presentationTimeUs = System.currentTimeMillis() * 1000L  // 将当前时间转换为微秒
+        val presentationTimeUs = (System.currentTimeMillis() - startTime) * 1000L  // 将当前时间转换为微秒
         mediaCodec.queueInputBuffer(index, 0, size, presentationTimeUs, 0)
     }
 
