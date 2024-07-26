@@ -1,7 +1,9 @@
 package pan.lib.camera_record.media.audio
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.media.AudioFormat
+import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.media.audiofx.AcousticEchoCanceler
@@ -15,22 +17,32 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
 @SuppressLint("MissingPermission")
-class AudioRecorder(aacInterface: AacInterface) {
+class AudioRecorder(private val context: Context, aacInterface: AacInterface) {
     private val sampleRate = 44100 // 采样频率为 44100 Hz
-    private val channelInMono = AudioFormat.CHANNEL_IN_MONO // 单声道
+    private val channelInMono: Int   // 判断是否支持双声道，根据情况选择
     private val encodingPcm16Bit = AudioFormat.ENCODING_PCM_16BIT // 量化精度为 16 位
     private val recordStarted = AtomicBoolean(false) // 是否开始录音
-    private val minBufferSize: Int =
-        AudioRecord.getMinBufferSize(sampleRate, channelInMono, encodingPcm16Bit) // 音频最小缓冲区大小
-
-    private var audioRecord: AudioRecord
-    private var echoCanceler: AcousticEchoCanceler? = null
-    private var noiseSuppressor: NoiseSuppressor? = null
-    private var automaticGainControl: AutomaticGainControl? = null
-    private val scope = CoroutineScope(Dispatchers.IO)
-    private val aacEncoder = AacEncoder(sampleRate, 1, 128000, true, aacInterface) // 比特率为 128 kbps
+    private val minBufferSize: Int // 音频最小缓冲区大小
+    private var audioRecord: AudioRecord// 音频录制器
+    private var echoCanceler: AcousticEchoCanceler? = null // 回声消除
+    private var noiseSuppressor: NoiseSuppressor? = null// 噪声抑制
+    private var automaticGainControl: AutomaticGainControl? = null// 自动增益控制
+    private val aacEncoder: AacEncoder //音频 编码器
+    private val scope = CoroutineScope(Dispatchers.IO) //协程中处理音频数据
 
     init {
+        if (isStereoSupported()) { // 判断是否支持双声道
+            channelInMono = AudioFormat.CHANNEL_IN_STEREO
+            aacEncoder = AacEncoder(sampleRate, 2, 128000, true, aacInterface)
+            Log.d("AudioRecorder", "Using stereo audio source")
+        } else {
+            channelInMono = AudioFormat.CHANNEL_IN_MONO
+            aacEncoder = AacEncoder(sampleRate, 1, 128000, true, aacInterface)
+            Log.d("AudioRecorder", "Using mono audio source")
+        }
+        minBufferSize = AudioRecord.getMinBufferSize(sampleRate, channelInMono, encodingPcm16Bit)
+        AudioRecord.getMinBufferSize(sampleRate, channelInMono, encodingPcm16Bit) // 音频最小缓冲区大小
+
         try {
             // 尝试使用 VOICE_COMMUNICATION 音频源，VOICE_COMMUNICATION 会自动启用回声消除（AEC）、自动增益控制（AGC）和噪声抑制（NS）等音频处理功能
             audioRecord = AudioRecord(
@@ -59,6 +71,19 @@ class AudioRecorder(aacInterface: AacInterface) {
         }
     }
 
+    // 判断是否支持双声道
+    private fun isStereoSupported(): Boolean {
+        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val audioDevices = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+
+        for (device in audioDevices) {
+            if (device.channelCounts.contains(2)) {
+                return true
+            }
+        }
+        return false
+    }
+
     //设置音频增强效果
     private fun setupAudioEnhancements() {
         if (AcousticEchoCanceler.isAvailable()) { // 判断回声消除是否可用
@@ -84,8 +109,7 @@ class AudioRecorder(aacInterface: AacInterface) {
             automaticGainControl = AutomaticGainControl.create(audioRecord.audioSessionId)
             automaticGainControl?.enabled = true
             Log.d(
-                "AudioRecorder",
-                "AutomaticGainControl enabled: ${automaticGainControl?.enabled}"
+                "AudioRecorder", "AutomaticGainControl enabled: ${automaticGainControl?.enabled}"
             )
         } else {
             Log.d("AudioRecorder", "AutomaticGainControl not available")

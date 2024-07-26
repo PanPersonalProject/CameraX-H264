@@ -34,7 +34,7 @@ open class StreamManager(
     }
 
     private val audioRecorder: AudioRecorder by lazy {
-        AudioRecorder(aacInterface)
+        AudioRecorder(context, aacInterface)
     }
 
     /**

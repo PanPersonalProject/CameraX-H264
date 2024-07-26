@@ -138,7 +138,7 @@ val bitmap = BitmapUtils.getBitmap(
 
 ```java
 dependencies {
-    implementation 'com.github.PanPersonalProject:CameraX-H264:1.1.0'
+    implementation 'com.github.PanPersonalProject:CameraX-H264:1.2.0'
 }
 ```
 ## IDE
