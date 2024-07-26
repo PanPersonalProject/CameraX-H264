@@ -100,16 +100,15 @@ class AudioRecorder(aacInterface: AacInterface) {
 
         scope.launch {
             audioRecord.startRecording()
-            val pcmBufferSize = 2000
-            val buffer = ByteArray(pcmBufferSize)
+            val buffer = ByteArray(minBufferSize)
             try {
                 while (recordStarted.get()) {
 //                    Log.d(
 //                        "AudioRecorder",
-//                        "Before read: state=${audioRecord.recordingState}, bufferSize=$pcmBufferSize"
+//                        "Before read: state=${audioRecord.recordingState}, bufferSize=minBufferSize"
 //                    )
 
-                    val read = audioRecord.read(buffer, 0, pcmBufferSize)
+                    val read = audioRecord.read(buffer, 0, minBufferSize)
                     if (read > 0) {
                         aacEncoder.encode(buffer, read)
                     } else {
